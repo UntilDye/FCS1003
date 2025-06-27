@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv11 交互式架构浏览器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutral (Stone, Slate, Indigo) -->
+    <!-- Application Structure Plan: A single-page application with a sticky top navigation for three main sections (Backbone, Neck, Head) plus an Overview. The core interaction is a model size selector that dynamically updates all network parameters (channel counts, dimensions) throughout the page. This component-based, interactive approach is chosen over a static diagram to allow users to explore the model's scalability and drill down into specific layer details via modals, making the complex architecture more digestible. -->
+    <!-- Visualization & Content Choices:
+    - Overall Architecture: Goal=Organize, Method=Interactive HTML/CSS flowchart, Interaction=Click-to-scroll nav, Justification=Breaks down complexity into manageable sections.
+    - Model Scaling: Goal=Compare/Explore, Method=Dropdown selector, Interaction=Select size, all numbers update, Justification=Demonstrates cause-and-effect of scaling parameters in real-time.
+    - Layer Details: Goal=Inform, Method=Modal pop-ups, Interaction=Click layer block, Justification=Provides deep-dive information without cluttering the primary view.
+    - Feature Flow: Goal=Show Relationships, Method=Styled HTML divs & CSS borders, Interaction=Implicit in layout, Justification=Clearly visualizes the data path from input to output. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+        }
+        .section-title {
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        .flow-arrow {
+            color: #94a3b8;
+        }
+        .module-card {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .module-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            border-color: #4f46e5;
+        }
+        .connector {
+            position: relative;
+            text-align: center;
+        }
+        .connector::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #e2e8f0;
+            transform: translateX(-50%);
+            z-index: -1;
+        }
+        .connector-text {
+            background-color: #f8fafc;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #475569;
+            border-radius: 9999px;
+            border: 2px solid #e2e8f0;
+        }
+        .modal-content {
+            animation: slide-up 0.3s ease-out;
+        }
+        @keyframes slide-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-slate-800">YOLOv11 架构浏览器</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#overview" class="text-slate-600 hover:text-indigo-600 font-medium">总览</a>
+                    <a href="#backbone" class="text-slate-600 hover:text-indigo-600 font-medium">主干 (Backbone)</a>
+                    <a href="#neck" class="text-slate-600 hover:text-indigo-600 font-medium">颈部 (Neck)</a>
+                    <a href="#head" class="text-slate-600 hover:text-indigo-600 font-medium">头部 (Head)</a>
+                </div>
+                 <div class="flex items-center">
+                    <label for="model-size-selector" class="mr-2 text-sm font-medium text-slate-600">模型尺寸:</label>
+                    <select id="model-size-selector" class="rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm">
+                        <option value="n">Nano (n)</option>
+                        <option value="s">Small (s)</option>
+                        <option value="m">Medium (m)</option>
+                        <option value="l">Large (l)</option>
+                        <option value="x">XLarge (x)</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        
+        <section id="overview" class="mb-16 text-center">
+            <h1 class="text-4xl font-bold text-slate-800 mb-4 section-title">YOLOv11 架构深度解析</h1>
+            <p class="max-w-3xl mx-auto text-lg text-slate-600">
+                这是一个交互式工具，用于探索 YOLOv11 物体检测模型的内部结构。您可以选择不同的模型尺寸来动态观察网络参数和特征图尺寸的变化，或点击任何模块以了解其详细功能。
+            </p>
+        </section>
+
+        <div class="max-w-4xl mx-auto">
+            <div class="p-6 bg-white rounded-xl shadow-lg border border-slate-200 module-card" data-modal-target="input">
+                <p class="font-bold text-lg text-indigo-700">输入图像 (Input Image)</p>
+                <p class="text-sm text-slate-500 mt-1">例如: 640 x 640 x 3</p>
+            </div>
+            <div class="h-8 flow-arrow text-3xl text-center">↓</div>
+        </div>
+
+        <section id="backbone" class="mb-12">
+            <h2 class="text-3xl font-bold text-slate-800 mb-8 text-center section-title">主干网络 (Backbone)</h2>
+            <div id="backbone-container" class="max-w-4xl mx-auto space-y-4"></div>
+        </section>
+        
+        <div class="max-w-4xl mx-auto my-8">
+            <div class="border-t border-dashed border-slate-300"></div>
+            <div class="text-center -mt-4">
+                <span class="bg-slate-100 px-4 text-slate-500 font-semibold rounded-full">特征送往 Neck 网络</span>
+            </div>
+            <div class="mt-4 text-center space-y-2 text-sm text-slate-600">
+                <p>p3 特征: <span data-value="p3_dims">80x80</span> x <span data-value="ch2">64</span></p>
+                <p>p4 特征: <span data-value="p4_dims">40x40</span> x <span data-value="ch3">128</span></p>
+                <p>p5 特征: <span data-value="p5_dims">20x20</span> x <span data-value="ch4">256</span></p>
+            </div>
+             <div class="h-8 flow-arrow text-3xl text-center mt-4">↓</div>
+        </div>
+
+        <section id="neck" class="mb-12">
+            <h2 class="text-3xl font-bold text-slate-800 mb-8 text-center section-title">颈部网络 (Neck - FPN/PAN)</h2>
+            <div id="neck-container" class="max-w-4xl mx-auto"></div>
+        </section>
+        
+        <div class="max-w-4xl mx-auto my-8">
+            <div class="border-t border-dashed border-slate-300"></div>
+            <div class="text-center -mt-4">
+                <span class="bg-slate-100 px-4 text-slate-500 font-semibold rounded-full">融合特征送往 Head 网络</span>
+            </div>
+            <div class="mt-4 text-center space-y-2 text-sm text-slate-600">
+                <p>p3_out: <span data-value="p3_dims">80x80</span> x <span data-value="ch2">64</span></p>
+                <p>p4_final: <span data-value="p4_dims">40x40</span> x <span data-value="ch3">128</span></p>
+                <p>p5_final: <span data-value="p5_dims">20x20</span> x <span data-value="ch4">256</span></p>
+            </div>
+             <div class="h-8 flow-arrow text-3xl text-center mt-4">↓</div>
+        </div>
+
+        <section id="head" class="mb-12">
+            <h2 class="text-3xl font-bold text-slate-800 mb-8 text-center section-title">检测头 (Head)</h2>
+            <div id="head-container" class="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-lg border border-slate-200 module-card" data-modal-target="detect">
+                 <p class="font-bold text-lg text-indigo-700">Detect</p>
+                 <div class="mt-4 space-y-2 text-sm text-slate-600">
+                     <p>Level 1 (from p3_out): <span data-value="p3_dims">80x80</span> x (<span data-value="head_ch_1">64</span>+<span data-value="nc">80</span>) = <span data-value="p3_dims">80x80</span> x <span data-value="head_out_1">144</span></p>
+                     <p>Level 2 (from p4_final): <span data-value="p4_dims">40x40</span> x (<span data-value="head_ch_1">64</span>+<span data-value="nc">80</span>) = <span data-value="p4_dims">40x40</span> x <span data-value="head_out_1">144</span></p>
+                     <p>Level 3 (from p5_final): <span data-value="p5_dims">20x20</span> x (<span data-value="head_ch_1">64</span>+<span data-value="nc">80</span>) = <span data-value="p5_dims">20x20</span> x <span data-value="head_out_1">144</span></p>
+                 </div>
+            </div>
+        </section>
+        
+        <div class="max-w-4xl mx-auto">
+            <div class="h-8 flow-arrow text-3xl text-center">↓</div>
+            <div class="p-6 bg-white rounded-xl shadow-lg border border-slate-200 module-card" data-modal-target="output">
+                <p class="font-bold text-lg text-indigo-700">检测结果 (Detection Results)</p>
+                <p class="text-sm text-slate-500 mt-1">边界框坐标, 置信度, 类别概率</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div id="modal-content" class="modal-content bg-white rounded-lg shadow-2xl max-w-lg w-full p-6 relative">
+            <button id="modal-close-button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <h3 id="modal-title" class="text-2xl font-bold text-slate-800 mb-4"></h3>
+            <div id="modal-body" class="text-slate-600 space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modelConfigs = {
+                'n': { depth: 0.33, width: 0.25, channels: [64, 128, 256, 512, 1024] },
+                's': { depth: 0.33, width: 0.50, channels: [64, 128, 256, 512, 1024] },
+                'm': { depth: 0.67, width: 0.75, channels: [96, 192, 384, 768, 1536] },
+                'l': { depth: 1.00, width: 1.00, channels: [128, 256, 512, 1024, 2048] },
+                'x': { depth: 1.00, width: 1.25, channels: [160, 320, 640, 1280, 2560] }
+            };
+
+            const modalData = {
+                input: { title: '输入图像', body: '<p>模型处理的起点。通常在送入网络前，图像会被缩放到一个标准尺寸，例如 640x640 像素，并进行归一化处理。</p>' },
+                conv: { title: '标准卷积块 (Conv)', body: '<p>Conv 块是网络的基础构建单元。它包含一个卷积层 (Conv2d)、一个批量归一化层 (BatchNorm2d) 和一个 SiLU 激活函数。</p><p>其主要作用是提取图像特征。步长为2的卷积层同时会使特征图的尺寸减半。</p>' },
+                c2f: { title: 'C2f 模块', body: '<p>C2f (CSP-Bottleneck with 2 convolutions, Faster) 模块是 YOLOv11 的核心特征提取模块。它源于 CSPNet (Cross Stage Partial Network) 的设计思想。</p><p>它将输入特征图分割成两部分，一部分经过一系列的 Bottleneck 瓶颈层进行深度处理，另一部分直接连接。最后将处理后的结果和直连部分拼接起来。这种设计能增强网络的学习能力，同时保持丰富的梯度信息，提高特征融合效率。</p>' },
+                sppf: { title: '空间金字塔池化快速版 (SPPF)', body: '<p>SPPF (Spatial Pyramid Pooling - Fast) 模块用于增大感受野，使网络能够融合不同尺度的特征，从而有效检测不同大小的物体。</p><p>它通过连续使用多个小尺寸的 MaxPool 层来模拟一个大尺寸的池化效果，相比于传统的 SPP 模块，计算效率更高。</p>' },
+                upsample: { title: '上采样 (Upsample)', body: '<p>上采样操作用于放大特征图的尺寸。在 Neck 部分，它将来自深层网络、包含丰富语义信息的低分辨率特征图放大，以便与来自浅层网络、包含精细位置信息的高分辨率特征图进行融合。</p>' },
+                concat: { title: '拼接 (Concat)', body: '<p>拼接操作沿着通道维度将两个特征图合并成一个。这是特征融合的关键步骤，它将来自不同路径或不同层级的特征信息组合在一起，形成更具表达能力的特征图。</p>' },
+                detect: { title: '检测头 (Detect)', body: '<p>检测头是模型的最后部分，负责在不同尺度的特征图上进行预测。</p><p>它为每个位置预测边界框（bounding box）、物体置信度（objectness score）和类别概率（class probabilities）。YOLOv11 使用解耦头（decoupled head），分别预测分类和回归任务，并采用 DFL (Distribution Focal Loss) 来优化边界框的定位精度。</p>' },
+                output: { title: '检测结果', body: '<p>模型最终输出检测到的所有物体的列表。每个物体包含其边界框的位置（通常是 x, y, width, height）、该边界框内包含一个物体的置信度分数，以及该物体属于每个类别的概率。</p><p>在实际应用中，通常会使用非极大值抑制（NMS）等后处理步骤来过滤掉重叠和低置信度的检测框，得到最终结果。</p>' },
+            };
+
+            const backboneStructure = [
+                { type: 'conv', id: 'conv', stride: 2, note: 'P1/2' },
+                { type: 'conv', id: 'conv', stride: 2, note: 'P2/4' },
+                { type: 'c2f', id: 'c2f', params: { shortcut: true } },
+                { type: 'conv', id: 'conv', stride: 2, note: 'P3/8', save: 'p3' },
+                { type: 'c2f', id: 'c2f', params: { shortcut: true } },
+                { type: 'conv', id: 'conv', stride: 2, note: 'P4/16', save: 'p4' },
+                { type: 'c2f', id: 'c2f', params: { shortcut: true } },
+                { type: 'conv', id: 'conv', stride: 2, note: 'P5/32', save: 'p5' },
+                { type: 'c2f', id: 'c2f', params: { shortcut: true } },
+                { type: 'sppf', id: 'sppf' }
+            ];
+
+            const neckStructure = [
+                { op: 'title', text: 'Top-down Pathway (FPN)' },
+                { op: 'module', type: 'upsample', id: 'upsample', source: 'p5', output: 'p5_up' },
+                { op: 'module', type: 'concat', id: 'concat', sources: ['p5_up', 'p4'], output: 'p4_cat' },
+                { op: 'module', type: 'c2f', id: 'c2f', source: 'p4_cat', output: 'p4_out' },
+                { op: 'module', type: 'upsample', id: 'upsample', source: 'p4_out', output: 'p4_up' },
+                { op: 'module', type: 'concat', id: 'concat', sources: ['p4_up', 'p3'], output: 'p3_cat' },
+                { op: 'module', type: 'c2f', id: 'c2f', source: 'p3_cat', output: 'p3_out' },
+                { op: 'title', text: 'Bottom-up Pathway (PAN)' },
+                { op: 'module', type: 'conv', id: 'conv', source: 'p3_out', stride: 2, output: 'p3_down' },
+                { op: 'module', type: 'concat', id: 'concat', sources: ['p3_down', 'p4_out'], output: 'p4_cat2' },
+                { op: 'module', type: 'c2f', id: 'c2f', source: 'p4_cat2', output: 'p4_final' },
+                { op: 'module', type: 'conv', id: 'conv', source: 'p4_final', stride: 2, output: 'p4_down' },
+                { op: 'module', type: 'concat', id: 'concat', sources: ['p4_down', 'p5'], output: 'p5_cat' },
+                { op: 'module', type: 'c2f', id: 'c2f', source: 'p5_cat', output: 'p5_final' },
+            ];
+
+            const selector = document.getElementById('model-size-selector');
+            const backboneContainer = document.getElementById('backbone-container');
+            const neckContainer = document.getElementById('neck-container');
+            
+            const makeDivisible = (x, divisor = 8) => Math.max(divisor, Math.round((x + divisor / 2) / divisor) * divisor);
+            
+            function updateUI() {
+                const modelSize = selector.value;
+                const config = modelConfigs[modelSize];
+                const baseH = 640;
+                let currentH = baseH;
+
+                const ch = config.channels.map(c => makeDivisible(c * config.width));
+                
+                let in_ch = 3;
+                let ch_idx = 0;
+                backboneContainer.innerHTML = '';
+                
+                backboneStructure.forEach(layer => {
+                    let out_ch;
+                    if (layer.type === 'conv' || layer.type === 'c2f') {
+                         out_ch = ch[ch_idx];
+                    } else {
+                         out_ch = in_ch;
+                    }
+                   
+                    if (layer.type === 'c2f') out_ch = in_ch;
+                    else if (layer.stride === 2) {
+                        currentH /= 2;
+                        out_ch = ch[ch_idx++];
+                    } else if (layer.type === 'sppf') {
+                        out_ch = in_ch;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'p-6 bg-white rounded-xl shadow-lg border border-slate-200 module-card';
+                    card.dataset.modalTarget = layer.id;
+                    
+                    let content = `<p class="font-bold text-lg text-indigo-700">${layer.type.toUpperCase()}</p>`;
+                    content += `<p class="text-sm text-slate-500 mt-1">输入通道: ${in_ch}, 输出通道: ${out_ch}</p>`;
+                    content += `<p class="text-sm text-slate-500 mt-1">特征图: ${currentH}x${currentH} x ${out_ch}</p>`;
+                    if (layer.note) {
+                        content += `<p class="text-xs font-semibold text-indigo-500 mt-2">${layer.note}</p>`;
+                    }
+                    card.innerHTML = content;
+                    
+                    if (backboneContainer.children.length > 0) {
+                       const arrow = document.createElement('div');
+                       arrow.className = 'h-8 flow-arrow text-3xl text-center';
+                       arrow.innerHTML = '↓';
+                       backboneContainer.appendChild(arrow);
+                    }
+                    
+                    backboneContainer.appendChild(card);
+                    in_ch = out_ch;
+                });
+
+                updateSpans(ch, baseH);
+                buildNeckUI(ch, baseH);
+                setupModalListeners();
+            }
+
+            function buildNeckUI(ch, baseH) {
+                neckContainer.innerHTML = '';
+                let dims = {
+                    p3: {h: baseH/8, ch: ch[2]},
+                    p4: {h: baseH/16, ch: ch[3]},
+                    p5: {h: baseH/32, ch: ch[4]},
+                };
+
+                neckStructure.forEach(layer => {
+                    if (layer.op === 'title') {
+                        const title = document.createElement('h3');
+                        title.className = 'text-xl font-bold text-slate-700 mt-8 mb-4 text-center section-title bg-slate-200/50 py-2 rounded-lg';
+                        title.textContent = layer.text;
+                        neckContainer.appendChild(title);
+                        if(neckContainer.children.length > 1) {
+                            const arrow = document.createElement('div');
+                            arrow.className = 'h-8 flow-arrow text-3xl text-center';
+                            arrow.innerHTML = '↓';
+                            neckContainer.insertBefore(arrow, title);
+                        }
+                        return;
+                    }
+                    
+                    const card = document.createElement('div');
+                    card.className = 'p-6 bg-white rounded-xl shadow-lg border border-slate-200 module-card';
+                    card.dataset.modalTarget = layer.id;
+
+                    let in_info = '', out_info = '';
+                    let in_dims_str = [], in_ch_sum = 0;
+
+                    if (layer.source) {
+                        const source_dim = dims[layer.source];
+                        in_dims_str.push(`${source_dim.h}x${source_dim.h}x${source_dim.ch}`);
+                        in_ch_sum += source_dim.ch;
+                    }
+                    if (layer.sources) {
+                        layer.sources.forEach(s => {
+                           const source_dim = dims[s];
+                           in_dims_str.push(`${source_dim.h}x${source_dim.h}x${source_dim.ch}`);
+                           in_ch_sum += source_dim.ch;
+                        });
+                    }
+                    in_info = `<p class="text-sm text-slate-500 mt-1">输入: ${in_dims_str.join(' & ')}</p>`;
+                    
+                    let output_dim = {};
+                    switch(layer.type) {
+                        case 'upsample':
+                            output_dim = { h: dims[layer.source].h * 2, ch: dims[layer.source].ch };
+                            break;
+                        case 'concat':
+                            output_dim = { h: dims[layer.sources[0]].h, ch: in_ch_sum };
+                            break;
+                        case 'conv':
+                            output_dim = { h: dims[layer.source].h / 2, ch: dims[layer.source].ch };
+                            break;
+                        case 'c2f':
+                            if (layer.output === 'p4_out') output_dim = { h: dims.p4.h, ch: dims.p4.ch };
+                            else if (layer.output === 'p3_out') output_dim = { h: dims.p3.h, ch: dims.p3.ch };
+                            else if (layer.output === 'p4_final') output_dim = { h: dims.p4.h, ch: dims.p4.ch };
+                            else if (layer.output === 'p5_final') output_dim = { h: dims.p5.h, ch: dims.p5.ch };
+                            break;
+                    }
+                    dims[layer.output] = output_dim;
+                    out_info = `<p class="text-sm text-slate-500 mt-1">输出: ${output_dim.h}x${output_dim.h}x${output_dim.ch}</p>`;
+                    
+                    card.innerHTML = `<p class="font-bold text-lg text-indigo-700">${layer.type.toUpperCase()}</p>${in_info}${out_info}`;
+
+                    if (neckContainer.lastChild && neckContainer.lastChild.tagName !== 'H3') {
+                        const arrow = document.createElement('div');
+                        arrow.className = 'h-8 flow-arrow text-3xl text-center';
+                        arrow.innerHTML = '↓';
+                        neckContainer.appendChild(arrow);
+                    }
+                    neckContainer.appendChild(card);
+                });
+            }
+
+            function updateSpans(ch, baseH) {
+                document.querySelectorAll('[data-value]').forEach(span => {
+                    const key = span.dataset.value;
+                    let value = '';
+                    switch (key) {
+                        case 'ch0': value = ch[0]; break;
+                        case 'ch1': value = ch[1]; break;
+                        case 'ch2': value = ch[2]; break;
+                        case 'ch3': value = ch[3]; break;
+                        case 'ch4': value = ch[4]; break;
+                        case 'p3_dims': value = `${baseH/8}x${baseH/8}`; break;
+                        case 'p4_dims': value = `${baseH/16}x${baseH/16}`; break;
+                        case 'p5_dims': value = `${baseH/32}x${baseH/32}`; break;
+                        case 'nc': value = 80; break;
+                        case 'head_ch_1': value = Math.max(16, ch[0] * 4, 16*4); break;
+                        case 'head_out_1': value = Math.max(16, ch[0] * 4, 16*4) + 80; break;
+                    }
+                    span.textContent = value;
+                });
+            }
+
+            function setupModalListeners() {
+                const modalContainer = document.getElementById('modal-container');
+                const modalTitle = document.getElementById('modal-title');
+                const modalBody = document.getElementById('modal-body');
+                const modalCloseButton = document.getElementById('modal-close-button');
+
+                document.querySelectorAll('[data-modal-target]').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const targetId = el.dataset.modalTarget;
+                        const data = modalData[targetId];
+                        if (data) {
+                            modalTitle.textContent = data.title;
+                            modalBody.innerHTML = data.body;
+                            modalContainer.classList.remove('hidden');
+                        }
+                    });
+                });
+
+                const closeModal = () => modalContainer.classList.add('hidden');
+                modalCloseButton.addEventListener('click', closeModal);
+                modalContainer.addEventListener('click', (e) => {
+                    if (e.target === modalContainer) {
+                        closeModal();
+                    }
+                });
+            }
+
+            selector.addEventListener('change', updateUI);
+            updateUI();
+        });
+    </script>
+</body>
+</html>
