@@ -1,0 +1,44 @@
+# train_config.yaml
+# 模型配置
+model_size: 'n'  # n, s, m, l, x
+num_classes: 1   # 细菌检测类别数
+pretrained_weights: null  # 预训练权重路径
+
+# 训练配置
+epochs: 50
+batch_size: 16
+img_size: 640
+learning_rate: 0.0001
+weight_decay: 0.0005
+optimizer: 'AdamW'  # AdamW, SGD
+scheduler: 'cosine'  # cosine, step, onecycle
+
+# 数据配置
+data_yaml: 'dataset/yolo_format/dataset.yaml'  
+
+# 训练策略
+patience: 50
+save_period: 10
+
+# 输出配置
+output_dir: 'runs/detect'
+experiment_name: 'bacteria_detection'
+
+# 日志配置
+use_wandb: false
+wandb_project: 'bacteria-detection'
+
+# 数据增强（可选）
+augmentation:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  degrees: 0.0
+  translate: 0.1
+  scale: 0.5
+  shear: 0.0
+  perspective: 0.0
+  flipud: 0.0
+  fliplr: 0.5
+  mosaic: 1.0
+  mixup: 0.0
