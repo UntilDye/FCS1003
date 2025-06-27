@@ -1,0 +1,8 @@
+batch_size: 16
+data_yaml: dataset/yolo_format/dataset.yaml
+epochs: 100
+experiment_name: bacteria_detection
+img_size: 640
+model_size: n
+num_classes: 1
+output_dir: runs/detect
