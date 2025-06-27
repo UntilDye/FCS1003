@@ -1,0 +1,6 @@
+path: C:\code\bateria\dataset\yolo_format
+train: images/train
+val: images/val
+
+nc: 1  # 类别数量
+names: ['colony']  # 类别名称
